@@ -4,12 +4,17 @@
   "description": "GitHub Action to publish browser extensions to Chrome Web Store, Firefox Add-ons, and Edge Add-ons.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=cjs --minify --outfile=dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --minify --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\" --outfile=dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "preversion": "pnpm build && git add dist/",
+    "release:patch": "pnpm version patch && git push && git push --tags",
+    "release:minor": "pnpm version minor && git push && git push --tags",
+    "release:major": "pnpm version major && git push && git push --tags"
   },
+  "type": "module",
   "keywords": [],
   "author": "creeperkatze",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=24"
   },
