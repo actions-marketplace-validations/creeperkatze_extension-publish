@@ -19,6 +19,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
 
       - name: Move major version tag
         run: |
