@@ -3,8 +3,8 @@ description: 'Upload and publish browser extensions to Chrome Web Store, Firefox
 author: 'creeperkatze'
 
 branding:
-  icon: 'upload-cloud'
-  color: 'blue'
+  icon: 'upload'
+  color: 'green'
 
 inputs:
   # Chrome Web Store
