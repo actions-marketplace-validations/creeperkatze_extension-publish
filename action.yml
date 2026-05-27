@@ -1,5 +1,5 @@
 name: 'Publish Browser Extension'
-description: 'Upload and publish browser extensions to Chrome Web Store, Firefox Add-ons, and Edge Add-ons.'
+description: 'Publish browser extensions to Chrome, Firefox, and Edge.'
 author: 'creeperkatze'
 
 branding:
@@ -120,6 +120,22 @@ inputs:
     description: >
       Version-specific release notes shown to users on AMO.
       Supports a plain string or a JSON object keyed by locale (e.g. '{"en-US":"..."}').
+    required: false
+
+  firefox-compatibility-firefox-min:
+    description: Minimum Firefox desktop version this release is compatible with (e.g. "109.0").
+    required: false
+
+  firefox-compatibility-firefox-max:
+    description: Maximum Firefox desktop version this release is compatible with (e.g. "120.0").
+    required: false
+
+  firefox-compatibility-android-min:
+    description: Minimum Firefox for Android version this release is compatible with (e.g. "113.0").
+    required: false
+
+  firefox-compatibility-android-max:
+    description: Maximum Firefox for Android version this release is compatible with (e.g. "120.0").
     required: false
 
   # Edge Add-ons

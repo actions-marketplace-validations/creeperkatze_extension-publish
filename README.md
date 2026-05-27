@@ -115,6 +115,10 @@ All stores are optional, only the stores with provided inputs will run.
 | `firefox-license` | No | - | License slug (e.g. `mpl-2.0`, `mit`) |
 | `firefox-approval-notes` | No | - | Internal notes for Mozilla reviewers |
 | `firefox-release-notes` | No | - | Release notes (plain string or `{"en-US":"..."}` JSON) |
+| `firefox-compatibility-firefox-min` | No | - | Minimum Firefox desktop version (e.g. `109.0`) |
+| `firefox-compatibility-firefox-max` | No | - | Maximum Firefox desktop version |
+| `firefox-compatibility-android-min` | No | - | Minimum Firefox for Android version (e.g. `113.0`) |
+| `firefox-compatibility-android-max` | No | - | Maximum Firefox for Android version |
 
 ### Edge Add-ons
 

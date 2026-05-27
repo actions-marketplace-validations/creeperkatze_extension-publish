@@ -98,6 +98,7 @@ async function createVersion(
   license: string | undefined,
   approvalNotes: string | undefined,
   releaseNotes: string | undefined,
+  compatibility: Record<string, unknown> | undefined,
 ): Promise<VersionResponse> {
   const body: Record<string, unknown> = { upload: uploadUuid }
 
@@ -111,6 +112,8 @@ async function createVersion(
       body['release_notes'] = { 'en-US': releaseNotes }
     }
   }
+
+  if (compatibility) body['compatibility'] = compatibility
 
   const response = await fetch(`${AMO_BASE}/addons/addon/${extensionId}/versions/`, {
     method: 'POST',
@@ -140,6 +143,25 @@ export async function publishToFirefox(): Promise<void> {
   const approvalNotes = core.getInput('firefox-approval-notes') || undefined
   const releaseNotes = core.getInput('firefox-release-notes') || undefined
 
+  const firefoxMin = core.getInput('firefox-compatibility-firefox-min')
+  const firefoxMax = core.getInput('firefox-compatibility-firefox-max')
+  const androidMin = core.getInput('firefox-compatibility-android-min')
+  const androidMax = core.getInput('firefox-compatibility-android-max')
+  const compatibility: Record<string, unknown> = {}
+  if (firefoxMin || firefoxMax) {
+    compatibility['firefox'] = {
+      ...(firefoxMin && { min: firefoxMin }),
+      ...(firefoxMax && { max: firefoxMax }),
+    }
+  }
+  if (androidMin || androidMax) {
+    compatibility['android'] = {
+      ...(androidMin && { min: androidMin }),
+      ...(androidMax && { max: androidMax }),
+    }
+  }
+  const resolvedCompatibility = Object.keys(compatibility).length > 0 ? compatibility : undefined
+
   // 1. Upload
   core.info(`Firefox Add-ons: uploading ${xpiPath} (channel: ${channel})...`)
   let upload = await uploadXpi(apiKey, apiSecret, xpiPath, channel)
@@ -160,7 +182,7 @@ export async function publishToFirefox(): Promise<void> {
   core.info('Firefox Add-ons: upload valid. Creating version...')
 
   // 3. Create version
-  const version = await createVersion(apiKey, apiSecret, extensionId, upload.uuid, license, approvalNotes, releaseNotes)
+  const version = await createVersion(apiKey, apiSecret, extensionId, upload.uuid, license, approvalNotes, releaseNotes, resolvedCompatibility)
 
   core.setOutput('firefox-version-id', String(version.id))
   core.setOutput('firefox-version-state', version.file.status)
