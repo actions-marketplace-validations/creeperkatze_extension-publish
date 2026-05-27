@@ -4,12 +4,24 @@ import { publishToEdge } from './edge'
 import { publishToFirefox } from './firefox'
 
 async function run(): Promise<void> {
-  try {
-    await publishToChrome()
-    await publishToFirefox()
-    await publishToEdge()
-  } catch (error) {
-    core.setFailed(error instanceof Error ? error.message : String(error))
+  const errors: string[] = []
+
+  for (const [name, fn] of [
+    ['Chrome Web Store', publishToChrome],
+    ['Firefox Add-ons', publishToFirefox],
+    ['Edge Add-ons', publishToEdge],
+  ] as const) {
+    try {
+      await fn()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      core.error(`${name}: ${message}`)
+      errors.push(name)
+    }
+  }
+
+  if (errors.length > 0) {
+    core.setFailed(`Failed: ${errors.join(', ')}`)
   }
 }
 
