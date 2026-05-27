@@ -72,6 +72,56 @@ inputs:
     required: false
     default: 'false'
 
+  # Firefox Add-ons
+  firefox-api-key:
+    description: >
+      AMO API key (issuer) obtained from addons.mozilla.org/developers/addon/api/key/.
+      Required for Firefox Add-ons publishing.
+    required: false
+
+  firefox-api-secret:
+    description: >
+      AMO API secret used to sign JWT tokens.
+      Required for Firefox Add-ons publishing.
+    required: false
+
+  firefox-extension-id:
+    description: >
+      The add-on ID, slug, or GUID (e.g. "{your-addon@example.com}").
+      Required when publishing a new version of an existing add-on.
+    required: false
+
+  firefox-xpi-path:
+    description: >
+      Path to the .xpi (or .zip) file to upload to Firefox Add-ons.
+      Required for Firefox Add-ons publishing.
+    required: false
+
+  firefox-channel:
+    description: >
+      Distribution channel for the uploaded file.
+      - "listed": publicly listed on addons.mozilla.org, requires review.
+      - "unlisted": self-distributed, available immediately without review.
+    required: false
+    default: 'listed'
+
+  firefox-license:
+    description: >
+      License slug applied to the new version (e.g. "mpl-2.0", "mit", "apache-2.0").
+      Required for listed add-ons. Ignored for unlisted.
+    required: false
+
+  firefox-approval-notes:
+    description: >
+      Internal notes for Mozilla reviewers. Not visible to users.
+    required: false
+
+  firefox-release-notes:
+    description: >
+      Version-specific release notes shown to users on AMO.
+      Supports a plain string or a JSON object keyed by locale (e.g. '{"en-US":"..."}').
+    required: false
+
 outputs:
   # Chrome Web Store
   chrome-upload-state:
@@ -92,6 +142,21 @@ outputs:
   chrome-item-id:
     description: >
       Item identifier echoed back by the Chrome Web Store API.
+
+  # Firefox Add-ons
+  firefox-upload-uuid:
+    description: >
+      UUID of the uploaded file returned by the AMO upload endpoint.
+      Useful for debugging or chaining with other steps.
+
+  firefox-version-id:
+    description: >
+      Numeric ID of the newly created add-on version on AMO.
+
+  firefox-version-state:
+    description: >
+      Review state of the new version after submission.
+      Typical values: nominated, public, disabled, beta, etc.
 
 runs:
   using: 'node24'

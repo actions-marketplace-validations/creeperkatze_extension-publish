@@ -4,8 +4,6 @@ import { readFileSync } from 'node:fs'
 const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const API_BASE = 'https://chromewebstore.googleapis.com'
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-
 type UploadState =
   | 'UPLOAD_STATE_UNSPECIFIED'
   | 'SUCCESS'
@@ -47,8 +45,6 @@ interface PublishRequest {
   deployInfos?: Array<{ deployPercentage?: number }>
   skipReview?: boolean
 }
-
-// ── API helpers ────────────────────────────────────────────────────────────────
 
 async function assertOk(response: Response, context: string): Promise<void> {
   if (!response.ok) {
@@ -157,8 +153,6 @@ async function publishItem(
   await assertOk(response, 'Publish')
   return (await response.json()) as PublishResponse
 }
-
-// ── Public entry point ─────────────────────────────────────────────────────────
 
 export async function publishToChrome(): Promise<void> {
   const clientId = core.getInput('chrome-client-id')
