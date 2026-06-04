@@ -1,9 +1,9 @@
 import * as core from '@actions/core'
-import { createHmac, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
+import { assertOk, makeJwt } from './utils'
 
-const AMO_BASE = 'https://addons.mozilla.org/api/v5'
+const BASE_URL = 'https://addons.mozilla.org/api/v5'
 
 interface UploadResponse {
   uuid: string
@@ -25,25 +25,6 @@ interface VersionResponse {
   version: string
 }
 
-function b64url(data: string | Buffer): string {
-  const buf = typeof data === 'string' ? Buffer.from(data) : data
-  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-}
-
-function makeJwt(apiKey: string, apiSecret: string): string {
-  const now = Math.floor(Date.now() / 1000)
-  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-  const payload = b64url(JSON.stringify({ iss: apiKey, jti: randomUUID(), iat: now, exp: now + 300 }))
-  const signature = b64url(createHmac('sha256', apiSecret).update(`${header}.${payload}`).digest())
-  return `${header}.${payload}.${signature}`
-}
-
-async function assertOk(response: Response, context: string): Promise<void> {
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`${context}: HTTP ${response.status} — ${body}`)
-  }
-}
 
 async function uploadXpi(
   apiKey: string,
@@ -56,7 +37,7 @@ async function uploadXpi(
   form.append('upload', new Blob([data], { type: 'application/x-xpinstall' }), basename(xpiPath))
   form.append('channel', channel)
 
-  const response = await fetch(`${AMO_BASE}/addons/upload/`, {
+  const response = await fetch(`${BASE_URL}/addons/upload/`, {
     method: 'POST',
     headers: { Authorization: `JWT ${makeJwt(apiKey, apiSecret)}` },
     body: form,
@@ -77,12 +58,12 @@ async function pollUpload(
   while (Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, intervalMs))
 
-    const response = await fetch(`${AMO_BASE}/addons/upload/${uuid}/`, {
+    const response = await fetch(`${BASE_URL}/addons/upload/${uuid}/`, {
       headers: { Authorization: `JWT ${makeJwt(apiKey, apiSecret)}` },
     })
     await assertOk(response, 'Firefox upload poll')
     const upload = (await response.json()) as UploadResponse
-    core.info(`  processed: ${upload.processed}, valid: ${upload.valid}`)
+    core.info(`  Processed: ${upload.processed}, Valid: ${upload.valid}`)
 
     if (upload.processed) return upload
   }
@@ -115,7 +96,7 @@ async function createVersion(
 
   if (compatibility) body['compatibility'] = compatibility
 
-  const response = await fetch(`${AMO_BASE}/addons/addon/${extensionId}/versions/`, {
+  const response = await fetch(`${BASE_URL}/addons/addon/${extensionId}/versions/`, {
     method: 'POST',
     headers: {
       Authorization: `JWT ${makeJwt(apiKey, apiSecret)}`,
@@ -134,7 +115,7 @@ export async function publishToFirefox(): Promise<void> {
   const xpiPath = core.getInput('firefox-xpi-path')
 
   if (!apiKey && !apiSecret && !extensionId && !xpiPath) {
-    core.info('Firefox Add-ons: no inputs provided — skipping.')
+    core.info('Firefox Add-ons: No inputs provided, skipping')
     return
   }
 
@@ -162,29 +143,29 @@ export async function publishToFirefox(): Promise<void> {
   }
   const resolvedCompatibility = Object.keys(compatibility).length > 0 ? compatibility : undefined
 
-  // 1. Upload
-  core.info(`Firefox Add-ons: uploading ${xpiPath} (channel: ${channel})...`)
+  // Upload
+  core.info(`Firefox Add-ons: Uploading ${xpiPath} (channel: ${channel})`)
   let upload = await uploadXpi(apiKey, apiSecret, xpiPath, channel)
-  core.info(`  uuid: ${upload.uuid}`)
+  core.info(`  UUID: ${upload.uuid}`)
 
-  // 2. Poll until processed
+  // Poll until processed
   if (!upload.processed) {
-    core.info('Firefox Add-ons: waiting for validation...')
+    core.info('Firefox Add-ons: Waiting for validation')
     upload = await pollUpload(apiKey, apiSecret, upload.uuid)
   }
 
   core.setOutput('firefox-upload-uuid', upload.uuid)
 
   if (!upload.valid) {
-    throw new Error(`Firefox Add-ons: upload failed validation.\n${JSON.stringify(upload.validation, null, 2)}`)
+    throw new Error(`Firefox Add-ons: Upload failed validation\n${JSON.stringify(upload.validation, null, 2)}`)
   }
 
-  core.info('Firefox Add-ons: upload valid. Creating version...')
+  core.info('Firefox Add-ons: Upload valid, creating version')
 
-  // 3. Create version
+  // Create version
   const version = await createVersion(apiKey, apiSecret, extensionId, upload.uuid, license, approvalNotes, releaseNotes, resolvedCompatibility)
 
   core.setOutput('firefox-version-id', String(version.id))
   core.setOutput('firefox-version-state', version.file.status)
-  core.info(`Firefox Add-ons: done. Version ${version.version}, state: ${version.file.status}`)
+  core.info(`Firefox Add-ons: Done, version: ${version.version}, state: ${version.file.status}`)
 }

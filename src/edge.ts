@@ -1,7 +1,8 @@
 import * as core from '@actions/core'
 import { readFileSync } from 'node:fs'
+import { assertOk } from './utils'
 
-const EDGE_BASE = 'https://api.addons.microsoftedge.microsoft.com'
+const BASE_URL = 'https://api.addons.microsoftedge.microsoft.com'
 
 interface OperationStatus {
   id: string
@@ -26,19 +27,13 @@ function extractOperationId(location: string): string {
 async function assertAccepted(response: Response, context: string): Promise<string> {
   if (response.status !== 202) {
     const body = await response.text()
-    throw new Error(`${context}: expected 202, got HTTP ${response.status} — ${body}`)
+    throw new Error(`${context}: expected 202, got HTTP ${response.status}: ${body}`)
   }
   const location = response.headers.get('Location')
   if (!location) throw new Error(`${context}: 202 response missing Location header`)
   return extractOperationId(location)
 }
 
-async function assertOk(response: Response, context: string): Promise<void> {
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`${context}: HTTP ${response.status} — ${body}`)
-  }
-}
 
 async function uploadPackage(
   apiKey: string,
@@ -49,7 +44,7 @@ async function uploadPackage(
   const zipData = readFileSync(zipPath)
 
   const response = await fetch(
-    `${EDGE_BASE}/v1/products/${productId}/submissions/draft/package`,
+    `${BASE_URL}/v1/products/${productId}/submissions/draft/package`,
     {
       method: 'POST',
       headers: {
@@ -75,12 +70,12 @@ async function pollOperation(
   while (Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, intervalMs))
 
-    const response = await fetch(`${EDGE_BASE}${statusUrl}`, {
+    const response = await fetch(`${BASE_URL}${statusUrl}`, {
       headers: authHeaders(apiKey, clientId),
     })
     await assertOk(response, `${context} status`)
     const status = (await response.json()) as OperationStatus
-    core.info(`  status: ${status.status}${status.message ? ` — ${status.message}` : ''}`)
+    core.info(`  Status: ${status.status}${status.message ? `: ${status.message}` : ''}`)
 
     if (status.status !== 'InProgress') return status
   }
@@ -95,7 +90,7 @@ async function publishDraft(
   notes: string | undefined,
 ): Promise<string> {
   const response = await fetch(
-    `${EDGE_BASE}/v1/products/${productId}/submissions`,
+    `${BASE_URL}/v1/products/${productId}/submissions`,
     {
       method: 'POST',
       headers: {
@@ -115,21 +110,21 @@ export async function publishToEdge(): Promise<void> {
   const zipPath = core.getInput('edge-zip-path')
 
   if (!apiKey && !clientId && !productId && !zipPath) {
-    core.info('Edge Add-ons: no inputs provided — skipping.')
+    core.info('Edge Add-ons: No inputs provided, skipping')
     return
   }
 
   const shouldPublish = core.getInput('edge-publish') !== 'false'
   const notes = core.getInput('edge-notes') || undefined
 
-  // 1. Upload
-  core.info(`Edge Add-ons: uploading ${zipPath}...`)
+  // Upload
+  core.info(`Edge Add-ons: Uploading ${zipPath}`)
   const uploadOperationId = await uploadPackage(apiKey, clientId, productId, zipPath)
-  core.info(`  upload operation ID: ${uploadOperationId}`)
+  core.info(`  Upload operation ID: ${uploadOperationId}`)
   core.setOutput('edge-upload-operation-id', uploadOperationId)
 
-  // 2. Poll upload status
-  core.info('Edge Add-ons: waiting for upload to complete...')
+  // Poll upload status
+  core.info('Edge Add-ons: Waiting for upload to complete')
   const uploadStatus = await pollOperation(
     apiKey,
     clientId,
@@ -139,22 +134,22 @@ export async function publishToEdge(): Promise<void> {
   core.setOutput('edge-upload-status', uploadStatus.status)
 
   if (uploadStatus.status === 'Failed') {
-    throw new Error(`Edge Add-ons: upload failed — ${uploadStatus.message} (${uploadStatus.errorCode})`)
+    throw new Error(`Edge Add-ons: Upload failed: ${uploadStatus.message} (${uploadStatus.errorCode})`)
   }
 
-  // 3. Publish (optional)
+  // Publish
   if (!shouldPublish) {
-    core.info('Edge Add-ons: skipping publish (edge-publish=false).')
+    core.info('Edge Add-ons: Skipping publish')
     return
   }
 
-  core.info('Edge Add-ons: publishing draft...')
+  core.info('Edge Add-ons: Publishing draft')
   const publishOperationId = await publishDraft(apiKey, clientId, productId, notes)
-  core.info(`  publish operation ID: ${publishOperationId}`)
+  core.info(`  Publish operation ID: ${publishOperationId}`)
   core.setOutput('edge-publish-operation-id', publishOperationId)
 
-  // 4. Poll publish status
-  core.info('Edge Add-ons: waiting for publish to complete...')
+  // Poll publish status
+  core.info('Edge Add-ons: Waiting for publish to complete')
   const publishStatus = await pollOperation(
     apiKey,
     clientId,
@@ -164,8 +159,8 @@ export async function publishToEdge(): Promise<void> {
   core.setOutput('edge-publish-status', publishStatus.status)
 
   if (publishStatus.status === 'Failed') {
-    throw new Error(`Edge Add-ons: publish failed — ${publishStatus.message} (${publishStatus.errorCode})`)
+    throw new Error(`Edge Add-ons: Publish failed: ${publishStatus.message} (${publishStatus.errorCode})`)
   }
 
-  core.info(`Edge Add-ons: done. Status: ${publishStatus.status}`)
+  core.info(`Edge Add-ons: Done, status: ${publishStatus.status}`)
 }

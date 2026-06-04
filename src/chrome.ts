@@ -1,8 +1,9 @@
 import * as core from '@actions/core'
 import { readFileSync } from 'node:fs'
+import { assertOk } from './utils'
 
 const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
-const API_BASE = 'https://chromewebstore.googleapis.com'
+const BASE_URL = 'https://chromewebstore.googleapis.com'
 
 type UploadState =
   | 'UPLOAD_STATE_UNSPECIFIED'
@@ -46,12 +47,6 @@ interface PublishRequest {
   skipReview?: boolean
 }
 
-async function assertOk(response: Response, context: string): Promise<void> {
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`${context}: HTTP ${response.status} — ${body}`)
-  }
-}
 
 async function getAccessToken(
   clientId: string,
@@ -80,7 +75,7 @@ async function uploadZip(
   zipPath: string,
 ): Promise<UploadResponse> {
   const name = `publishers/${publisherId}/items/${extensionId}`
-  const url = `${API_BASE}/upload/v2/${name}:upload`
+  const url = `${BASE_URL}/upload/v2/${name}:upload`
   const zipData = readFileSync(zipPath)
 
   const response = await fetch(url, {
@@ -103,7 +98,7 @@ async function fetchStatus(
   extensionId: string,
 ): Promise<FetchStatusResponse> {
   const name = `publishers/${publisherId}/items/${extensionId}`
-  const url = `${API_BASE}/v2/${name}:fetchStatus`
+  const url = `${BASE_URL}/v2/${name}:fetchStatus`
 
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -124,7 +119,7 @@ async function pollUploadStatus(
   while (Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, intervalMs))
     const status = await fetchStatus(accessToken, publisherId, extensionId)
-    core.info(`  upload status: ${status.lastAsyncUploadState}`)
+    core.info(`  Upload status: ${status.lastAsyncUploadState}`)
     if (status.lastAsyncUploadState !== 'IN_PROGRESS') {
       return status.lastAsyncUploadState
     }
@@ -140,7 +135,7 @@ async function publishItem(
   body: PublishRequest,
 ): Promise<PublishResponse> {
   const name = `publishers/${publisherId}/items/${extensionId}`
-  const url = `${API_BASE}/v2/${name}:publish`
+  const url = `${BASE_URL}/v2/${name}:publish`
 
   const response = await fetch(url, {
     method: 'POST',
@@ -163,7 +158,7 @@ export async function publishToChrome(): Promise<void> {
   const zipPath = core.getInput('chrome-zip-path')
 
   if (!clientId && !clientSecret && !refreshToken && !publisherId && !extensionId && !zipPath) {
-    core.info('Chrome Web Store: no inputs provided — skipping.')
+    core.info('Chrome Web Store: No inputs provided, skipping')
     return
   }
 
@@ -174,23 +169,23 @@ export async function publishToChrome(): Promise<void> {
   const deployPercentageRaw = core.getInput('chrome-deploy-percentage')
   const skipReview = core.getInput('chrome-skip-review') === 'true'
 
-  // 1. Auth
-  core.info('Chrome Web Store: obtaining access token...')
+  // Auth
+  core.info('Chrome Web Store: Obtaining access token')
   const accessToken = await getAccessToken(clientId, clientSecret, refreshToken)
 
-  // 2. Upload
-  core.info(`Chrome Web Store: uploading ${zipPath}...`)
+  // Upload
+  core.info(`Chrome Web Store: Uploading ${zipPath}`)
   const upload = await uploadZip(accessToken, publisherId, extensionId, zipPath)
-  core.info(`  initial upload state: ${upload.uploadState}`)
+  core.info(`  Initial upload state: ${upload.uploadState}`)
 
   if (upload.crxVersion) {
     core.setOutput('chrome-crx-version', upload.crxVersion)
   }
 
-  // 3. Poll if async
+  // Poll if async
   let uploadState = upload.uploadState
   if (uploadState === 'IN_PROGRESS') {
-    core.info('Chrome Web Store: upload in progress, polling...')
+    core.info('Chrome Web Store: Waiting for upload to complete')
     uploadState = await pollUploadStatus(accessToken, publisherId, extensionId)
   }
 
@@ -198,15 +193,15 @@ export async function publishToChrome(): Promise<void> {
   core.setOutput('chrome-item-id', upload.itemId)
 
   if (uploadState === 'FAILURE') {
-    throw new Error('Chrome Web Store: upload failed.')
+    throw new Error('Chrome Web Store: Upload failed')
   }
   if (uploadState !== 'SUCCESS') {
-    throw new Error(`Chrome Web Store: unexpected upload state "${uploadState}".`)
+    throw new Error(`Chrome Web Store: Unexpected upload state "${uploadState}"`)
   }
 
-  // 4. Publish (optional)
+  // Publish
   if (!shouldPublish) {
-    core.info('Chrome Web Store: skipping publish (chrome-publish=false).')
+    core.info('Chrome Web Store: Skipping publish')
     return
   }
 
@@ -216,8 +211,8 @@ export async function publishToChrome(): Promise<void> {
     publishRequest.deployInfos = [{ deployPercentage: parseInt(deployPercentageRaw, 10) }]
   }
 
-  core.info('Chrome Web Store: publishing...')
+  core.info('Chrome Web Store: Publishing')
   const result = await publishItem(accessToken, publisherId, extensionId, publishRequest)
   core.setOutput('chrome-publish-state', result.state)
-  core.info(`Chrome Web Store: done. State: ${result.state}`)
+  core.info(`Chrome Web Store: Done, state: ${result.state}`)
 }
