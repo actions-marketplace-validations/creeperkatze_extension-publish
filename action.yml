@@ -1,5 +1,5 @@
 name: 'Publish Browser Extension'
-description: 'Publish browser extensions to Chrome, Firefox, and Edge.'
+description: 'A GitHub Action to upload and publish browser extensions to the Chrome Web Store, Firefox Add-ons, and Edge Add-ons.'
 author: 'creeperkatze'
 
 branding:
