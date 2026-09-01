@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import { readFileSync } from 'node:fs'
-import { assertOk } from './utils'
+import { assertOk, PublishResult } from './utils'
 
 const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const BASE_URL = 'https://chromewebstore.googleapis.com'
@@ -8,6 +8,7 @@ const BASE_URL = 'https://chromewebstore.googleapis.com'
 type UploadState =
   | 'UPLOAD_STATE_UNSPECIFIED'
   | 'SUCCESS'
+  | 'SUCCEEDED'
   | 'FAILURE'
   | 'IN_PROGRESS'
   | 'NOT_FOUND'
@@ -149,7 +150,7 @@ async function publishItem(
   return (await response.json()) as PublishResponse
 }
 
-export async function publishToChrome(): Promise<void> {
+export async function publishToChrome(): Promise<PublishResult> {
   const clientId = core.getInput('chrome-client-id')
   const clientSecret = core.getInput('chrome-client-secret')
   const refreshToken = core.getInput('chrome-refresh-token')
@@ -159,7 +160,7 @@ export async function publishToChrome(): Promise<void> {
 
   if (!clientId && !clientSecret && !refreshToken && !publisherId && !extensionId && !zipPath) {
     core.info('Chrome Web Store: No inputs provided, skipping')
-    return
+    return { status: 'skipped', details: 'No inputs provided' }
   }
 
   const shouldPublish = core.getInput('chrome-publish') !== 'false'
@@ -195,14 +196,14 @@ export async function publishToChrome(): Promise<void> {
   if (uploadState === 'FAILURE') {
     throw new Error('Chrome Web Store: Upload failed')
   }
-  if (uploadState !== 'SUCCESS') {
+  if (uploadState !== 'SUCCESS' && uploadState !== 'SUCCEEDED') {
     throw new Error(`Chrome Web Store: Unexpected upload state "${uploadState}"`)
   }
 
   // Publish
   if (!shouldPublish) {
     core.info('Chrome Web Store: Skipping publish')
-    return
+    return { status: 'success', version: upload.crxVersion, details: `Uploaded, not published (upload state: ${uploadState})` }
   }
 
   const publishRequest: PublishRequest = { publishType, skipReview }
@@ -215,4 +216,6 @@ export async function publishToChrome(): Promise<void> {
   const result = await publishItem(accessToken, publisherId, extensionId, publishRequest)
   core.setOutput('chrome-publish-state', result.state)
   core.info(`Chrome Web Store: Done, state: ${result.state}`)
+
+  return { status: 'success', version: upload.crxVersion, details: `Publish state: ${result.state}` }
 }
