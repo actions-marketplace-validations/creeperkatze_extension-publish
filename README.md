@@ -2,6 +2,7 @@
 
 A GitHub Action to upload and publish browser extensions to the Chrome Web Store, Firefox Add-ons, and Edge Add-ons.
 
+[![Checks](https://img.shields.io/github/actions/workflow/status/creeperkatze/extension-publish/ci.yml?branch=main&label=checks)](https://github.com/creeperkatze/extension-publish/actions/workflows/ci.yml)
 ![GitHub Issues](https://img.shields.io/github/issues/creeperkatze/extension-publish)
 ![GitHub Pull Requests](https://img.shields.io/github/issues-pr/creeperkatze/extension-publish)
 ![GitHub Repo stars](https://img.shields.io/github/stars/creeperkatze/extension-publish?style=flat)
@@ -24,7 +25,7 @@ A GitHub Action to upload and publish browser extensions to the Chrome Web Store
     firefox-api-secret:   ${{ secrets.FIREFOX_API_SECRET }}
     firefox-extension-id: ${{ secrets.FIREFOX_EXTENSION_ID }}
     firefox-xpi-path:     ./extension.zip
-    firefox-license:      mpl-2.0
+    firefox-license:      MPL-2.0
 
     # Edge Add-ons
     edge-api-key:         ${{ secrets.EDGE_API_KEY }}
@@ -62,7 +63,7 @@ All stores are optional, only the stores with provided inputs will run.
 
 1. Sign in to [addons.mozilla.org](https://addons.mozilla.org).
 2. Go to [API Credentials](https://addons.mozilla.org/developers/addon/api/key/).
-3. Click **Generate new credentials** - note the **JWT issuer** (API key) and **JWT secret** (API secret).
+3. Click **Generate new credentials**, note the **JWT issuer** (API key) and **JWT secret** (API secret).
 4. Your **Extension ID** is the add-on ID, slug, or GUID shown in the add-on's developer page (e.g. `{your-addon@example.com}`).
 
 | Secret | Where to find it |
@@ -77,7 +78,7 @@ All stores are optional, only the stores with provided inputs will run.
 
 1. Sign in to [Partner Center](https://partner.microsoft.com/dashboard/microsoftedge).
 2. Under **Microsoft Edge**, select **Publish API**.
-3. Click **Create API credentials** - note the **Client ID** and **API Key**.
+3. Click **Create API credentials**, note the **Client ID** and **API Key**.
 4. To find your **Product ID**, open your extension in Partner Center and copy the GUID from the URL or the **Extension identity** section.
 
 | Secret | Where to find it |
@@ -88,6 +89,12 @@ All stores are optional, only the stores with provided inputs will run.
 
 ## 📥 Inputs
 
+### Global
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `version-file` | No | `package.json` | JSON file with a top-level `version` value, used to replace `{version}` in archive paths |
+
 ### Chrome Web Store
 
 | Input | Required | Default | Description |
@@ -97,7 +104,7 @@ All stores are optional, only the stores with provided inputs will run.
 | `chrome-refresh-token` | Yes | - | Long-lived refresh token |
 | `chrome-publisher-id` | Yes | - | Publisher ID from the developer dashboard |
 | `chrome-extension-id` | Yes | - | Extension item ID |
-| `chrome-zip-path` | Yes | - | Path to the `.zip` to upload |
+| `chrome-zip-path` | Yes | - | Path to the `.zip` to upload.<br>`{version}` is replaced with the version from `version-file` |
 | `chrome-publish` | No | `true` | Set to `false` to upload without publishing |
 | `chrome-publish-type` | No | `DEFAULT_PUBLISH` | `DEFAULT_PUBLISH` or `STAGED_PUBLISH` |
 | `chrome-deploy-percentage` | No | - | Rollout percentage for `STAGED_PUBLISH` (0–100) |
@@ -110,9 +117,9 @@ All stores are optional, only the stores with provided inputs will run.
 | `firefox-api-key` | Yes | - | AMO JWT issuer (API key) |
 | `firefox-api-secret` | Yes | - | AMO JWT secret |
 | `firefox-extension-id` | Yes | - | Add-on ID, slug, or GUID |
-| `firefox-xpi-path` | Yes | - | Path to the `.xpi` or `.zip` to upload |
+| `firefox-xpi-path` | Yes | - | Path to the `.xpi` or `.zip` to upload.<br>`{version}` is replaced with the version from `version-file` |
 | `firefox-channel` | No | `listed` | `listed` or `unlisted` |
-| `firefox-license` | No | - | License slug (e.g. `mpl-2.0`, `mit`) |
+| `firefox-license` | No | - | License slug (e.g. `MPL-2.0`, `MIT`). See [valid license slugs](https://mozilla.github.io/addons-server/topics/api/licenses.html).
 | `firefox-approval-notes` | No | - | Internal notes for Mozilla reviewers |
 | `firefox-release-notes` | No | - | Release notes (plain string or `{"en-US":"..."}` JSON) |
 | `firefox-compatibility-firefox` | No | - | Firefox desktop compatibility: `true` (all versions), `109.0` (min only), or `109.0, 120.0` (min, max) |
@@ -125,7 +132,7 @@ All stores are optional, only the stores with provided inputs will run.
 | `edge-api-key` | Yes | - | API key from Partner Center |
 | `edge-client-id` | Yes | - | Client ID from Partner Center |
 | `edge-product-id` | Yes | - | Product ID GUID |
-| `edge-zip-path` | Yes | - | Path to the `.zip` to upload |
+| `edge-zip-path` | Yes | - | Path to the `.zip` to upload.<br>`{version}` is replaced with the version from `version-file` |
 | `edge-publish` | No | `true` | Set to `false` to upload without publishing |
 | `edge-notes` | No | - | Certification notes for Microsoft reviewers |
 
@@ -147,4 +154,4 @@ All stores are optional, only the stores with provided inputs will run.
 
 ## 📜 License
 
-AGPL-3.0
+MIT
